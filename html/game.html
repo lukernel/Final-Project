@@ -1,0 +1,229 @@
+<!DOCTYPE html> 
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Galaga Game</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      display: flex;
+      font-family: Arial, sans-serif;
+    }
+    #gameContainer {
+      position: relative;
+      width: 800px;
+      height: 600px;
+      margin: auto;
+    }
+    #scoreboard {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      font-size: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px;
+      border-radius: 5px;
+    }
+    #highScoreboard {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      color: white;
+      font-size: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px;
+      border-radius: 5px;
+    }
+    #retryButton {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 10px 20px;
+      font-size: 20px;
+      background: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      display: none;
+    }
+    canvas {
+      display: block;
+      background: black;
+    }
+  </style>
+</head>
+<body>
+<div id="gameContainer">
+  <div id="scoreboard">Score: 0</div>
+  <div id="highScoreboard">High Score: 0</div>
+  <button id="retryButton">Retry</button>
+  <canvas id="gameCanvas"></canvas>
+</div>
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const scoreboard = document.getElementById('scoreboard');
+  const highScoreboard = document.getElementById('highScoreboard');
+  const retryButton = document.getElementById('retryButton');
+
+  // Set canvas size
+  canvas.width = 800;
+  canvas.height = 600;
+
+  // Game variables
+  const player = {
+    x: canvas.width / 2 - 25,
+    y: canvas.height - 60,
+    width: 50,
+    height: 50,
+    color: 'white',
+    speed: 5,
+  };
+
+  const enemies = [];
+  const enemySize = 40;
+  let isGameOver = false;
+  let score = 0;
+  let highScore = 0;
+  let enemySpeedMultiplier = 1;
+  let spawnInterval = 2000;
+  let difficultyTimer;
+
+  // Key controls
+  const keys = {
+    ArrowLeft: false,
+    ArrowRight: false,
+  };
+
+  // Draw player
+  function drawPlayer() {
+    ctx.fillStyle = player.color;
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+  }
+
+  // Draw enemies
+  function drawEnemies() {
+    ctx.fillStyle = 'red';
+    for (const enemy of enemies) {
+      ctx.fillRect(enemy.x, enemy.y, enemySize, enemySize);
+    }
+  }
+
+  // Spawn enemies
+  function spawnEnemies() {
+    enemies.push({
+      x: Math.random() * (canvas.width - enemySize),
+      y: -enemySize,
+      speed: (2 + Math.random() * 2) * enemySpeedMultiplier,
+    });
+  }
+
+  // Update enemies
+  function updateEnemies() {
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const enemy = enemies[i];
+      enemy.y += enemy.speed;
+
+      if (enemy.y > canvas.height) {
+        score++;
+        updateScoreboard();
+        enemies.splice(i, 1);
+        continue;
+      }
+
+      if (
+        player.x < enemy.x + enemySize &&
+        player.x + player.width > enemy.x &&
+        player.y < enemy.y + enemySize &&
+        player.y + player.height > enemy.y
+      ) {
+        isGameOver = true;
+      }
+    }
+  }
+
+  // Update scoreboard
+  function updateScoreboard() {
+    scoreboard.textContent = `Score: ${score}`;
+    if (score > highScore) {
+      highScore = score;
+      highScoreboard.textContent = `High Score: ${highScore}`;
+    }
+  }
+
+  // Move player
+  function movePlayer() {
+    if (keys.ArrowLeft && player.x > 0) {
+      player.x -= player.speed;
+    }
+    if (keys.ArrowRight && player.x + player.width < canvas.width) {
+      player.x += player.speed;
+    }
+  }
+
+  // Increase difficulty
+  function increaseDifficulty() {
+    enemySpeedMultiplier += 0.2; // Increase the speed increment to make enemies faster
+    spawnInterval = Math.max(300, spawnInterval - 200); // Decrease spawn interval (min 300ms)
+    clearInterval(difficultyTimer); // Clear previous difficulty timer
+    difficultyTimer = setInterval(spawnEnemies, spawnInterval); // Restart interval with new spawn rate
+  }
+
+  // Game loop
+  function gameLoop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (isGameOver) {
+      ctx.fillStyle = 'white';
+      ctx.font = '30px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2);
+      retryButton.style.display = 'block';
+      return;
+    }
+
+    drawPlayer();
+    drawEnemies();
+    movePlayer();
+    updateEnemies();
+
+    requestAnimationFrame(gameLoop);
+  }
+
+  // Reset game
+  function resetGame() {
+    isGameOver = false;
+    score = 0;
+    enemySpeedMultiplier = 1;
+    spawnInterval = 2000;
+    enemies.length = 0;
+    player.x = canvas.width / 2 - player.width / 2;
+    updateScoreboard();
+    retryButton.style.display = 'none';
+    clearInterval(difficultyTimer);
+    difficultyTimer = setInterval(spawnEnemies, spawnInterval);
+    gameLoop();
+  }
+
+  // Event listeners
+  window.addEventListener('keydown', (e) => {
+    if (e.key in keys) keys[e.key] = true;
+  });
+
+  window.addEventListener('keyup', (e) => {
+    if (e.key in keys) keys[e.key] = false;
+  });
+
+  retryButton.addEventListener('click', resetGame);
+
+  // Start game
+  difficultyTimer = setInterval(spawnEnemies, spawnInterval);
+  setInterval(increaseDifficulty, 5000); // Increase difficulty every 5 seconds
+  gameLoop();
+</script>
+</body>
+</html>
